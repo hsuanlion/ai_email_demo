@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { reportData, calendarOriginal } from './data';
 import { StatCard } from './components/StatCard';
 import { Badge } from './components/Badge';
-import { applyActionsToCalendar, formatDate } from './utils/calendarProcessor';
+import { applyActionsToCalendar, formatDate, formatCalendarDate, formatCalendarTime } from './utils/calendarProcessor';
 import { EmailResult, CalendarEvent } from './types';
 
 type FilterType = 'all' | 'meeting' | 'urgent' | 'action';
@@ -13,6 +12,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'emails' | 'calendar'>('emails');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
+  const calendarBeforeSorted = useMemo(() => [...calendarOriginal].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()), []);
   const calendarAfter = useMemo(() => applyActionsToCalendar(calendarOriginal, reportData.results), []);
 
   const stats = useMemo(() => {
@@ -189,7 +189,7 @@ const App: React.FC = () => {
                           <h2 className="text-xl font-bold text-slate-800 mb-1">{selectedEmail.subject}</h2>
                           <div className="flex items-center text-slate-500 text-xs space-x-3">
                             <span className="flex items-center"><i className="far fa-user mr-1.5"></i>{selectedEmail.sender}</span>
-                            <span className="flex items-center"><i className="far fa-clock mr-1.5"></i>{new Date(selectedEmail.timestamp).toLocaleString()}</span>
+                            <span className="flex items-center"><i className="far fa-clock mr-1.5"></i>{formatDate(selectedEmail.timestamp)}</span>
                           </div>
                         </div>
                         <Badge variant={getPriorityVariant(selectedEmail.decision_making.priority)}>Priority {selectedEmail.decision_making.priority}</Badge>
@@ -210,6 +210,8 @@ const App: React.FC = () => {
                               {[
                                 { label: 'Category', value: selectedEmail.decision_making.category, variant: getCategoryVariant(selectedEmail.decision_making.category) },
                                 { label: 'Conflicts', value: selectedEmail.decision_making.conflicts ? 'YES' : 'NO', variant: selectedEmail.decision_making.conflicts ? 'red' : 'green' },
+                                { label: 'Safety Guardrails', value: selectedEmail.decision_making.need_guardrails ? 'TRIGGERED' : 'CLEAN', variant: selectedEmail.decision_making.need_guardrails ? 'purple' : 'slate' },
+                                { label: 'Duplicate Check', value: selectedEmail.decision_making.has_same_event ? 'REDUNDANT' : 'UNIQUE', variant: selectedEmail.decision_making.has_same_event ? 'blue' : 'slate' },
                                 { label: 'Weekend/Holiday', value: selectedEmail.decision_making.is_weekend_or_holiday ? 'YES' : 'NO', variant: selectedEmail.decision_making.is_weekend_or_holiday ? 'yellow' : 'slate' },
                                 { label: 'Change Request', value: selectedEmail.decision_making.is_change_request ? 'YES' : 'NO', variant: 'slate' },
                               ].map((item, idx) => (
@@ -289,10 +291,10 @@ const App: React.FC = () => {
                   </h3>
                </div>
                <div className="p-6 space-y-4">
-                  {calendarOriginal.map((event) => (
+                  {calendarBeforeSorted.map((event) => (
                     <CalendarEventItem key={event.id} event={event} />
                   ))}
-                  {calendarOriginal.length === 0 && <p className="text-center text-slate-400 py-10">Calendar is empty.</p>}
+                  {calendarBeforeSorted.length === 0 && <p className="text-center text-slate-400 py-10">Calendar is empty.</p>}
                </div>
             </div>
 
@@ -344,8 +346,14 @@ const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, isNew, ema
          {isNew && <Badge variant="green">ADDED via {emailId}</Badge>}
        </div>
        <div className="flex items-center text-[10px] text-slate-500 space-x-4">
-          <span className="flex items-center"><i className="far fa-calendar mr-1.5 text-indigo-300"></i>{formatDate(event.start).split(' ')[0]} {formatDate(event.start).split(' ')[1]}</span>
-          <span className="flex items-center"><i className="far fa-clock mr-1.5 text-indigo-300"></i>{formatDate(event.start).split(' ')[2]} - {formatDate(event.end).split(' ')[2]}</span>
+          <span className="flex items-center">
+            <i className="far fa-calendar mr-1.5 text-indigo-300"></i>
+            {formatCalendarDate(event.start)}
+          </span>
+          <span className="flex items-center">
+            <i className="far fa-clock mr-1.5 text-indigo-300"></i>
+            {formatCalendarTime(event.start)} - {formatCalendarTime(event.end)}
+          </span>
        </div>
     </div>
   );
